@@ -4,6 +4,7 @@ import * as fs from 'node:fs/promises'
 import * as os from 'node:os'
 import type { CrawlResult, AhrefsMetrics, AIVisibilityResult, ReportNarratives, ExtractedPage, CruxResult } from './types.js'
 import { computeHealthScore } from './score.js'
+import { inferBrandName } from './infer.js'
 
 function fmt(n: number): string {
   return Math.round(n).toLocaleString('en-US')
@@ -78,11 +79,12 @@ function cwvCell(ms: number | null, verdict: string, unit: string): string {
 function buildHtml(
   ahrefs: AhrefsMetrics,
   crawl: CrawlResult,
-  ai: AIVisibilityResult,
+  ai: AIVisibilityResult | null,
   narratives: ReportNarratives,
   crux: CruxResult | null
 ): string {
   const health = computeHealthScore({ ahrefs, crawl, crux, ai })
+  const aiAvailable = !!(ai && ai.available !== false && ai.total_queries > 0)
   const date = new Date().toISOString().slice(0, 10)
   const total = crawl.pages.length
   const metaMissing = crawl.pages.filter((p) => !p.meta_description && p.fetch_status === 200).length
@@ -128,7 +130,7 @@ function buildHtml(
     )
     .join('')
 
-  const topicRows = ai.topic_breakdown
+  const topicRows = (ai?.topic_breakdown ?? [])
     .map(
       (t) => `<tr><td>${esc(t.topic)}</td><td class="q">${esc(t.query)}</td><td>${
         t.appeared ? '<span class="badge b-green">Yes</span>' : '<span class="badge b-gray">No</span>'
@@ -136,7 +138,7 @@ function buildHtml(
     )
     .join('')
 
-  const compRows = ai.competitor_brands
+  const compRows = (ai?.competitor_brands ?? [])
     .map(
       (c) => `<tr><td>${esc(c.brand)}</td><td class="u">${esc(c.domain)}</td><td>${c.appearances}</td><td>${
         c.avg_position !== null ? c.avg_position.toFixed(1) : '—'
@@ -144,7 +146,7 @@ function buildHtml(
     )
     .join('')
 
-  const sampleBlocks = ai.sample_responses.length
+  const sampleBlocks = (ai?.sample_responses?.length)
     ? ai.sample_responses
         .map(
           (s) => `<div class="sample"><div class="q">Q: ${esc(s.query)}</div><div class="a">${
@@ -152,7 +154,7 @@ function buildHtml(
           }${esc(s.raw_snippet ?? '—')}</div></div>`
         )
         .join('')
-    : `<p class="muted">No brand mentions surfaced across the ${ai.total_queries} tested queries.</p>`
+    : `<p class="muted">No brand mentions surfaced across the ${ai?.total_queries ?? 0} tested queries.</p>`
 
   const moveCols = narratives.content_analysis.content_moves
     .slice(0, 3)
@@ -235,7 +237,7 @@ function buildHtml(
 <div class="page">
   <div class="hd">
     <div class="eyebrow">SEO / AEO Audit</div>
-    <div class="doc-title">${esc(ai.brand_name)}</div>
+    <div class="doc-title">${esc(ai?.brand_name ?? inferBrandName(crawl.root_url, crawl))}</div>
     <div class="doc-sub">Audit target: ${esc(crawl.root_url)} · Generated ${date}</div>
     <span class="health">Health ${health.score}/100 · Grade ${health.grade}</span>
   </div>
@@ -304,7 +306,7 @@ function buildHtml(
     <table><thead><tr><th>Device</th><th>LCP</th><th>INP</th><th>CLS</th></tr></thead><tbody>
       <tr><td>Desktop</td>${cwvCell(crux.desktop?.lcp_ms ?? null, crux.desktop?.lcp_verdict ?? 'unknown', 'ms')}${cwvCell(crux.desktop?.inp_ms ?? null, crux.desktop?.inp_verdict ?? 'unknown', 'ms')}${cwvCell(crux.desktop?.cls ?? null, crux.desktop?.cls_verdict ?? 'unknown', 'cls')}</tr>
       <tr><td>Mobile</td>${cwvCell(crux.mobile?.lcp_ms ?? null, crux.mobile?.lcp_verdict ?? 'unknown', 'ms')}${cwvCell(crux.mobile?.inp_ms ?? null, crux.mobile?.inp_verdict ?? 'unknown', 'ms')}${cwvCell(crux.mobile?.cls ?? null, crux.mobile?.cls_verdict ?? 'unknown', 'cls')}</tr>
-    </tbody></table></div>` : ''}
+    </tbody></table></div>` : '<div class="card" style="margin-bottom:11px"><div class="card-title">Core Web Vitals</div><p class="muted">No CrUX field data — set a CRUX_API_KEY and ensure the origin has enough Chrome traffic for Google to report.</p></div>'}
 
   <div class="row c2">
     <div class="card"><div class="card-title">Crawl/template findings</div>
@@ -360,10 +362,11 @@ function buildHtml(
 <div class="page">
   <div class="hd"><div class="eyebrow">AI Visibility</div><div class="headline">${esc(narratives.aivisibility_headline)}</div></div>
 
+  ${aiAvailable ? `
   <div class="stats s3">
-    <div class="stat"><div class="k">Brand visibility</div><div class="v">${ai.brand_visibility_pct}%</div><div class="s">${ai.ranked_in} of ${ai.total_queries} queries</div></div>
-    <div class="stat"><div class="k">Avg position</div><div class="v">${ai.avg_position ?? '—'}</div><div class="s">when surfaced</div></div>
-    <div class="stat"><div class="k">Queries tested</div><div class="v">${ai.total_queries}</div><div class="s">category buying-intent</div></div>
+    <div class="stat"><div class="k">Brand visibility</div><div class="v">${ai!.brand_visibility_pct}%</div><div class="s">${ai!.ranked_in} of ${ai!.total_queries} queries</div></div>
+    <div class="stat"><div class="k">Avg position</div><div class="v">${ai!.avg_position ?? '—'}</div><div class="s">when surfaced</div></div>
+    <div class="stat"><div class="k">Queries tested</div><div class="v">${ai!.total_queries}</div><div class="s">category buying-intent</div></div>
   </div>
 
   <div class="row c2">
@@ -376,6 +379,7 @@ function buildHtml(
   </div>
 
   <div class="card"><div class="card-title">Sample AI responses</div>${sampleBlocks}</div>
+  ` : `<div class="card"><div class="card-title">AI Visibility not measured</div><p class="muted">Configure an <strong>OPENAI_API_KEY</strong> on the audit server and re-run the audit to populate this section — grounded brand visibility across category buyer queries, competitor brands, and sample AI answers.</p></div>`}
 
   <div class="foot">${neutralFoot}</div>
 </div>
@@ -387,7 +391,7 @@ function buildHtml(
 export async function renderAuditPdf(
   ahrefs: AhrefsMetrics,
   crawl: CrawlResult,
-  ai: AIVisibilityResult,
+  ai: AIVisibilityResult | null,
   narratives: ReportNarratives,
   crux: CruxResult | null,
   outputPath?: string

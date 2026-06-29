@@ -34,7 +34,7 @@ Call `fetch_ai_visibility` (from the `seo-aeo-audit` MCP server) with:
 
 The server generates unbiased, brand-excluded buyer queries, runs grounded web-search rankings via OpenAI, detects the brand + competitors (with domain redirect-resolution and a denylist), and returns the complete `ai_visibility` object (`brand_visibility_pct`, `avg_position`, `ranked_in`, `total_queries`, `topic_breakdown`, `competitor_brands`, `sample_responses`). Use it as-is — do not hand-assemble it.
 
-Requires `OPENAI_API_KEY` on the server. Takes ~10–30s (7 grounded queries).
+Uses `OPENAI_API_KEY` if set (~10–30s, 7 grounded queries). If the key is absent the tool returns `available: false` instead of failing — pass it to `render_audit_pdf` as usual and the AI Visibility section renders "not measured". Only `AHREFS_API_KEY` is required for an audit; `crux` and AI visibility are optional enrichments.
 
 ---
 

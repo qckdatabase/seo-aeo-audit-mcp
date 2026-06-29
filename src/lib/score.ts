@@ -53,7 +53,8 @@ export function computeHealthScore(input: {
   ]
   const perf = performanceScore(input.crux)
   if (perf != null) dims.push({ dimension: 'Performance', subscore: perf, weight: 0.2 })
-  if (input.ai) dims.push({ dimension: 'AI visibility', subscore: input.ai.brand_visibility_pct, weight: 0.2 })
+  if (input.ai && input.ai.available !== false && input.ai.total_queries > 0)
+    dims.push({ dimension: 'AI visibility', subscore: input.ai.brand_visibility_pct, weight: 0.2 })
 
   const totalWeight = dims.reduce((s, d) => s + d.weight, 0)
   const score = Math.round(dims.reduce((s, d) => s + d.subscore * d.weight, 0) / totalWeight)

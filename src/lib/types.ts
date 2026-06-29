@@ -98,6 +98,8 @@ export interface AIVisibilityResult {
   topic_breakdown: AIVisibilityTopic[]
   competitor_brands: AIVisibilityCompetitor[]
   sample_responses: AIVisibilitySampleResponse[]
+  /** false when AI visibility could not be measured (e.g. no OPENAI_API_KEY). Absent = available. */
+  available?: boolean
 }
 
 export interface AIVisibilityTopic {

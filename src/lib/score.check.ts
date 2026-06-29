@@ -17,7 +17,7 @@ const crux: CruxResult = {
   desktop: { lcp_ms: 2000, inp_ms: 150, cls: 0.05, lcp_verdict: 'good', inp_verdict: 'good', cls_verdict: 'good' },
   mobile: { lcp_ms: 2000, inp_ms: 150, cls: 0.05, lcp_verdict: 'good', inp_verdict: 'good', cls_verdict: 'good' },
 }
-const ai = { brand_visibility_pct: 29 } as AIVisibilityResult
+const ai = { brand_visibility_pct: 29, total_queries: 7, available: true } as AIVisibilityResult
 
 const full = computeHealthScore({ ahrefs, crawl, crux, ai })
 assert.ok(full.score >= 0 && full.score <= 100)
@@ -28,4 +28,13 @@ assert.ok(['A', 'B', 'C', 'D'].includes(full.grade))
 const partial = computeHealthScore({ ahrefs, crawl, crux: null, ai: null })
 assert.equal(partial.breakdown.length, 2)
 assert.ok(partial.score >= 0 && partial.score <= 100)
+
+// AI visibility unavailable (no OpenAI key) -> dimension dropped, NOT counted as 0%
+const noAi = computeHealthScore({
+  ahrefs, crawl, crux,
+  ai: { brand_visibility_pct: 0, total_queries: 0, available: false } as AIVisibilityResult,
+})
+assert.equal(noAi.breakdown.length, 3) // on-page + authority + performance; ai skipped
+assert.ok(!noAi.breakdown.some((d) => d.dimension === 'AI visibility'))
+
 console.log('OK')

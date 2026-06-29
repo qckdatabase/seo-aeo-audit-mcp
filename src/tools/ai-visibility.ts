@@ -144,6 +144,15 @@ export async function fetchAiVisibility(
   brand: string,
   industry: string
 ): Promise<AIVisibilityResult> {
+  // Graceful fallback: without an OpenAI key, mark AI visibility unavailable
+  // instead of throwing — the rest of the audit still produces a report.
+  if (!process.env.OPENAI_API_KEY) {
+    return {
+      domain: bareHost(domain), brand_name: brand, brand_visibility_pct: 0, avg_position: null,
+      ranked_in: 0, total_queries: 0, topic_breakdown: [], competitor_brands: [],
+      sample_responses: [], available: false,
+    }
+  }
   const prompts = await generatePrompts(brand, domain, industry, 7)
   const results = await mapLimit(prompts, 3, (p) => runPrompt(p, domain))
   return aggregateVisibility(domain, brand, results)

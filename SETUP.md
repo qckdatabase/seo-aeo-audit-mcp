@@ -28,9 +28,9 @@ Wait a minute or two (it also downloads a small browser it uses to make the PDF)
 ## Step 3 — Add your keys
 1. Make a copy of the template file named `.env.example` and rename the copy to `.env`.
 2. Open `.env` in any text editor and paste your keys after the `=` signs:
-   - `AHREFS_API_KEY=` — **paid.** Get it from your Ahrefs account → API.
-   - `OPENAI_API_KEY=` — **paid.** Get it from platform.openai.com → API keys.
-   - `CRUX_API_KEY=` — **free, optional.** Google Cloud → create an API key → turn on "Chrome UX Report API". (Skip it if you don't want speed scores.)
+   - `AHREFS_API_KEY=` — **required, paid.** Get it from your Ahrefs account → API. (The only one you must have.)
+   - `OPENAI_API_KEY=` — **optional, paid.** platform.openai.com → API keys. Adds the "AI Visibility" section; skip it and that section just says "not measured."
+   - `CRUX_API_KEY=` — **optional, free.** Google Cloud → create an API key → turn on "Chrome UX Report API". Adds the speed (Core Web Vitals) section.
 3. Save the file. Keep it private — it holds your keys.
 
 ## Step 4 — Connect it to your AI assistant

@@ -25,9 +25,11 @@ Create the env file from the template:
 cp .env.example .env
 ```
 The user must fill in `.env` with three keys. **Ask the user to paste each value directly into `.env` themselves (or you write the file only after they hand you the value privately) — never echo keys back into the chat.**
-- `AHREFS_API_KEY` — required, **paid**. From ahrefs.com → API.
-- `OPENAI_API_KEY` — required for AI-visibility, **paid**. From platform.openai.com → API keys.
-- `CRUX_API_KEY` — optional, **free**. Google Cloud Console → create an API key → enable the **"Chrome UX Report API"**. Without it, the report simply omits the Core Web Vitals card.
+- `AHREFS_API_KEY` — **required**, **paid**. From ahrefs.com → API. (The only must-have.)
+- `OPENAI_API_KEY` — optional, **paid**. From platform.openai.com → API keys. Enables the AI Visibility section; without it that section renders "not measured" and the audit still completes.
+- `CRUX_API_KEY` — optional, **free**. Google Cloud Console → create an API key → enable the **"Chrome UX Report API"**. Without it the report omits the Core Web Vitals card.
+
+The audit runs with only `AHREFS_API_KEY`; the other two just add sections.
 
 ## 4. Register the MCP server
 **Claude Code** (preferred):

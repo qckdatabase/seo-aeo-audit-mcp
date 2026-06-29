@@ -165,6 +165,7 @@ const aiVisibilitySchema = z.object({
     brand_position: z.number().int().nullable(),
     raw_snippet: z.string().nullable(),
   })).describe('Up to 3 queries where the brand appeared'),
+  available: z.boolean().optional().describe('false when AI visibility was not measured (no OPENAI_API_KEY)'),
 })
 
 server.tool(
@@ -176,7 +177,7 @@ server.tool(
   {
     ahrefs: z.any().describe('The ahrefs object exactly as returned by fetch_audit_data'),
     crawl: z.any().describe('The crawl object exactly as returned by fetch_audit_data'),
-    ai_visibility: aiVisibilitySchema,
+    ai_visibility: aiVisibilitySchema.optional(),
     narratives: narrativesSchema,
     crux: z.any().optional().describe('The crux object from fetch_audit_data (pass through; optional)'),
     output_path: z.string().optional()
@@ -193,7 +194,7 @@ server.tool(
     const pdfPath = await renderAuditPdf(
       ahrefsObj,
       crawlObj,
-      ai_visibility as AIVisibilityResult,
+      (ai_visibility as AIVisibilityResult | undefined) ?? null,
       narratives as ReportNarratives,
       cruxObj,
       output_path

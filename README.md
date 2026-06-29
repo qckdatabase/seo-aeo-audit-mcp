@@ -17,8 +17,11 @@ It exposes three tools — `fetch_audit_data` (crawl + Ahrefs + Core Web Vitals)
 
 ## Requirements
 - Node.js 18+
-- `AHREFS_API_KEY` (paid), `OPENAI_API_KEY` (paid) — required
-- `CRUX_API_KEY` (free, Google Chrome UX Report API) — optional (adds Core Web Vitals)
+- `AHREFS_API_KEY` (paid) — **required** (the core SEO data)
+- `OPENAI_API_KEY` (paid) — optional; enables the AI Visibility section (omitted/"not measured" without it)
+- `CRUX_API_KEY` (free, Google Chrome UX Report API) — optional; adds Core Web Vitals
+
+The audit runs with only the Ahrefs key; the other two just add sections.
 
 Keys go in a local `.env` (copy `.env.example`); never commit it.
 
