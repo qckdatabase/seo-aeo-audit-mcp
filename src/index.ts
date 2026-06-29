@@ -17,6 +17,7 @@ import { inferBrandName, inferIndustry } from './lib/infer.js'
 import type { AhrefsMetrics, CrawlResult, AIVisibilityResult, ReportNarratives, CruxResult } from './lib/types.js'
 import { fetchCoreWebVitals } from './lib/crux.js'
 import { fetchAiVisibility } from './tools/ai-visibility.js'
+import { parseArg } from './lib/parse-arg.js'
 
 const server = new McpServer({
   name: 'seo-aeo-audit',
@@ -182,12 +183,19 @@ server.tool(
       .describe('Absolute path for PDF output. Defaults to ~/Desktop/<domain>-seo-audit.pdf'),
   },
   async ({ ahrefs, crawl, ai_visibility, narratives, crux, output_path }) => {
+    // z.any() args can arrive as JSON strings over MCP — coerce to objects.
+    const ahrefsObj = parseArg<AhrefsMetrics>(ahrefs)
+    const crawlObj = parseArg<CrawlResult>(crawl)
+    const cruxObj = parseArg<CruxResult | null>(crux) ?? null
+    if (!crawlObj || !Array.isArray(crawlObj.pages)) {
+      throw new Error('render_audit_pdf: `crawl` must be the full object from fetch_audit_data (with a pages array)')
+    }
     const pdfPath = await renderAuditPdf(
-      ahrefs as AhrefsMetrics,
-      crawl as CrawlResult,
+      ahrefsObj,
+      crawlObj,
       ai_visibility as AIVisibilityResult,
       narratives as ReportNarratives,
-      (crux ?? null) as CruxResult | null,
+      cruxObj,
       output_path
     )
 
