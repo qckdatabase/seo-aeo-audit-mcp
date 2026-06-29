@@ -144,3 +144,28 @@ export interface ReportNarratives {
   data_limitations: string
   aivisibility_headline: string
 }
+
+// ─── Core Web Vitals (CrUX) ────────────────────────────────────────────────
+export type CwvVerdict = 'good' | 'needs-improvement' | 'poor' | 'unknown'
+
+export interface DeviceCWV {
+  lcp_ms: number | null
+  inp_ms: number | null
+  cls: number | null
+  lcp_verdict: CwvVerdict
+  inp_verdict: CwvVerdict
+  cls_verdict: CwvVerdict
+}
+
+export interface CruxResult {
+  available: boolean
+  desktop: DeviceCWV | null
+  mobile: DeviceCWV | null
+}
+
+// ─── Health Score ──────────────────────────────────────────────────────────
+export interface HealthScore {
+  score: number // 0-100
+  grade: 'A' | 'B' | 'C' | 'D'
+  breakdown: Array<{ dimension: string; subscore: number; weight: number }>
+}
