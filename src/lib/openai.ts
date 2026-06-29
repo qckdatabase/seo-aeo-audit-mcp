@@ -1,7 +1,7 @@
 import OpenAI from 'openai'
 
 export interface RankEntry {
-  rank: number
+  rank: number | null
   brand: string
   domain: string
   reason: string
@@ -59,5 +59,7 @@ export async function groundedRanking(query: string): Promise<RankEntry[]> {
   })
   const text = (res as any).output_text ?? ''
   const parsed = parseJsonLoose<{ rankings?: RankEntry[] }>(text)
-  return (parsed.rankings ?? []).filter((r) => r && r.domain)
+  return (parsed.rankings ?? [])
+    .filter((r) => r && r.domain)
+    .map((r) => ({ ...r, rank: Number((r as any).rank) || null, reason: r.reason ?? '' }))
 }
