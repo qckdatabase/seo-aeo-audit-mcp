@@ -45,6 +45,16 @@ export async function chatJSON<T>(
   return parseJsonLoose<T>(res.choices[0]?.message?.content ?? '{}')
 }
 
+// Grounded structured call via web search — returns parsed JSON of type T.
+export async function groundedJSON<T>(instruction: string): Promise<T> {
+  const res = await getClient().responses.create({
+    model: 'gpt-4o',
+    tools: [{ type: 'web_search_preview' }],
+    input: instruction,
+  })
+  return parseJsonLoose<T>((res as any).output_text ?? '')
+}
+
 // Grounded brand discovery via web search — returns a ranked list.
 export async function groundedRanking(query: string): Promise<RankEntry[]> {
   const system =
