@@ -91,7 +91,7 @@ function buildHtml(
     (p) => p.schema_types.length === 0 && !p.microdata_detected && p.fetch_status === 200
   ).length
 
-  const kwRows = ahrefs.top_keywords
+  const kwRows = (ahrefs.top_keywords ?? [])
     .slice(0, 8)
     .map(
       (k) => `<tr><td>${esc(k.keyword)}</td><td>${fmt(k.volume)}</td><td>${k.position}</td><td>${fmt(
@@ -100,7 +100,7 @@ function buildHtml(
     )
     .join('')
 
-  const pageRows = ahrefs.top_pages
+  const pageRows = (ahrefs.top_pages ?? [])
     .slice(0, 8)
     .map(
       (p) => `<tr><td class="u">${esc(pathOf(p.url))}</td><td>${fmt(p.traffic)}</td><td>${p.keywords}</td><td>${esc(
@@ -119,7 +119,7 @@ function buildHtml(
     )
     .join('')
 
-  const refRows = ahrefs.top_referring_domains
+  const refRows = (ahrefs.top_referring_domains ?? [])
     .slice(0, 8)
     .map(
       (r) => `<tr><td>${esc(r.domain)}</td><td>${r.domain_rating}</td><td>${fmt(r.backlinks)}</td><td>${
