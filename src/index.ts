@@ -14,7 +14,9 @@ import { crawlWebsite } from './tools/crawl.js'
 import { fetchAhrefsMetrics } from './tools/ahrefs.js'
 import { renderAuditPdf } from './lib/report.js'
 import { inferBrandName, inferIndustry } from './lib/infer.js'
-import type { AhrefsMetrics, CrawlResult, AIVisibilityResult, ReportNarratives } from './lib/types.js'
+import type { AhrefsMetrics, CrawlResult, AIVisibilityResult, ReportNarratives, CruxResult } from './lib/types.js'
+import { fetchCoreWebVitals } from './lib/crux.js'
+import { fetchAiVisibility } from './tools/ai-visibility.js'
 
 const server = new McpServer({
   name: 'seo-aeo-audit',
@@ -42,9 +44,10 @@ server.tool(
       throw new Error(`Invalid URL: ${url}`)
     }
 
-    const [crawl, ahrefs] = await Promise.all([
+    const [crawl, ahrefs, crux] = await Promise.all([
       crawlWebsite(rootUrl, 32),
       fetchAhrefsMetrics(domain),
+      fetchCoreWebVitals(domain),
     ])
 
     const brand_name = inferBrandName(rootUrl, crawl)
@@ -54,14 +57,36 @@ server.tool(
       content: [
         {
           type: 'text' as const,
-          text: JSON.stringify({ crawl, ahrefs, brand_name, industry }),
+          text: JSON.stringify({ crawl, ahrefs, crux, brand_name, industry }),
         },
       ],
     }
   }
 )
 
-// ─── Tool 2: render_audit_pdf ─────────────────────────────────────────────────
+// ─── Tool 2: fetch_ai_visibility ──────────────────────────────────────────────
+
+server.tool(
+  'fetch_ai_visibility',
+  'Measure how often a brand appears in AI/answer-engine results for unbiased, category-level ' +
+  'buyer queries. Generates prompts (brand-name excluded), runs grounded web-search rankings, and ' +
+  'returns brand visibility %, average position, per-topic breakdown, and competitor brands. ' +
+  'Pass brand and industry from fetch_audit_data when available. Requires OPENAI_API_KEY.',
+  {
+    url: z.string().url().describe('Full URL to audit'),
+    brand: z.string().optional().describe('Brand name (from fetch_audit_data.brand_name)'),
+    industry: z.string().optional().describe('Industry/context hint (from fetch_audit_data.industry)'),
+  },
+  async ({ url, brand, industry }) => {
+    const domain = new URL(url).hostname.replace(/^www\./, '')
+    const brandName = brand ?? domain
+    const ind = industry ?? 'general'
+    const result = await fetchAiVisibility(domain, brandName, ind)
+    return { content: [{ type: 'text' as const, text: JSON.stringify(result) }] }
+  }
+)
+
+// ─── Tool 3: render_audit_pdf ─────────────────────────────────────────────────
 // PDF renderer. Accepts pre-written narratives and AI visibility data from Claude.
 
 const narrativesSchema = z.object({
@@ -152,15 +177,17 @@ server.tool(
     crawl: z.any().describe('The crawl object exactly as returned by fetch_audit_data'),
     ai_visibility: aiVisibilitySchema,
     narratives: narrativesSchema,
+    crux: z.any().optional().describe('The crux object from fetch_audit_data (pass through; optional)'),
     output_path: z.string().optional()
       .describe('Absolute path for PDF output. Defaults to ~/Desktop/<domain>-seo-audit.pdf'),
   },
-  async ({ ahrefs, crawl, ai_visibility, narratives, output_path }) => {
+  async ({ ahrefs, crawl, ai_visibility, narratives, crux, output_path }) => {
     const pdfPath = await renderAuditPdf(
       ahrefs as AhrefsMetrics,
       crawl as CrawlResult,
       ai_visibility as AIVisibilityResult,
       narratives as ReportNarratives,
+      (crux ?? null) as CruxResult | null,
       output_path
     )
 

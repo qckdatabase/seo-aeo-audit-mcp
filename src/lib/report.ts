@@ -2,7 +2,8 @@ import puppeteer from 'puppeteer'
 import * as path from 'node:path'
 import * as fs from 'node:fs/promises'
 import * as os from 'node:os'
-import type { CrawlResult, AhrefsMetrics, AIVisibilityResult, ReportNarratives, ExtractedPage } from './types.js'
+import type { CrawlResult, AhrefsMetrics, AIVisibilityResult, ReportNarratives, ExtractedPage, CruxResult } from './types.js'
+import { computeHealthScore } from './score.js'
 
 function fmt(n: number): string {
   return Math.round(n).toLocaleString('en-US')
@@ -68,12 +69,20 @@ function issueSummary(page: ExtractedPage): string {
   return labels.join('; ').replace(/^./, (c) => c.toUpperCase())
 }
 
+function cwvCell(ms: number | null, verdict: string, unit: string): string {
+  const cls = verdict === 'good' ? 'b-green' : verdict === 'poor' ? 'b-red' : verdict === 'needs-improvement' ? 'b-amber' : 'b-gray'
+  const val = ms == null ? '—' : unit === 'cls' ? ms.toFixed(2) : `${Math.round(ms)}${unit}`
+  return `<td><span class="badge ${cls}">${val}</span></td>`
+}
+
 function buildHtml(
   ahrefs: AhrefsMetrics,
   crawl: CrawlResult,
   ai: AIVisibilityResult,
-  narratives: ReportNarratives
+  narratives: ReportNarratives,
+  crux: CruxResult | null
 ): string {
+  const health = computeHealthScore({ ahrefs, crawl, crux, ai })
   const date = new Date().toISOString().slice(0, 10)
   const total = crawl.pages.length
   const metaMissing = crawl.pages.filter((p) => !p.meta_description && p.fetch_status === 200).length
@@ -168,6 +177,7 @@ function buildHtml(
   .headline { font-size: 16.5pt; font-weight: 700; color: #1c2540; margin-top: 3px; line-height: 1.12; }
   .doc-title { font-size: 23pt; font-weight: 700; color: #2b3550; margin-top: 2px; }
   .doc-sub { font-size: 8.5pt; color: #7a8294; margin-top: 5px; }
+  .health { display: inline-block; margin-top: 8px; background: #1c2540; color: #fff; font-size: 9pt; font-weight: 700; padding: 3px 12px; border-radius: 14px; }
   .hd { margin-bottom: 12px; }
 
   .stats { display: grid; gap: 11px; margin-bottom: 11px; }
@@ -201,6 +211,7 @@ function buildHtml(
   .badge { display: inline-block; font-size: 7pt; font-weight: 700; padding: 1px 7px; border-radius: 8px; }
   .b-red { background: #fde8e8; color: #b42318; }
   .b-green { background: #e7f6ec; color: #197741; }
+  .b-amber { background: #fef3cd; color: #91660a; }
   .b-gray { background: #eef0f3; color: #667085; }
 
   .plan { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
@@ -226,6 +237,7 @@ function buildHtml(
     <div class="eyebrow">SEO / AEO Audit</div>
     <div class="doc-title">${esc(ai.brand_name)}</div>
     <div class="doc-sub">Audit target: ${esc(crawl.root_url)} · Generated ${date}</div>
+    <span class="health">Health ${health.score}/100 · Grade ${health.grade}</span>
   </div>
 
   <div class="stats s4">
@@ -287,6 +299,12 @@ function buildHtml(
     <div class="stat"><div class="k">Pages missing H1</div><div class="v">${h1Missing}/${total}</div><div class="s">across crawled pages</div></div>
     <div class="stat"><div class="k">Pages missing JSON-LD</div><div class="v">${schemaMissing}/${total}</div><div class="s">no structured data</div></div>
   </div>
+
+  ${crux && crux.available ? `<div class="card" style="margin-bottom:11px"><div class="card-title">Core Web Vitals (CrUX field data)</div>
+    <table><thead><tr><th>Device</th><th>LCP</th><th>INP</th><th>CLS</th></tr></thead><tbody>
+      <tr><td>Desktop</td>${cwvCell(crux.desktop?.lcp_ms ?? null, crux.desktop?.lcp_verdict ?? 'unknown', 'ms')}${cwvCell(crux.desktop?.inp_ms ?? null, crux.desktop?.inp_verdict ?? 'unknown', 'ms')}${cwvCell(crux.desktop?.cls ?? null, crux.desktop?.cls_verdict ?? 'unknown', 'cls')}</tr>
+      <tr><td>Mobile</td>${cwvCell(crux.mobile?.lcp_ms ?? null, crux.mobile?.lcp_verdict ?? 'unknown', 'ms')}${cwvCell(crux.mobile?.inp_ms ?? null, crux.mobile?.inp_verdict ?? 'unknown', 'ms')}${cwvCell(crux.mobile?.cls ?? null, crux.mobile?.cls_verdict ?? 'unknown', 'cls')}</tr>
+    </tbody></table></div>` : ''}
 
   <div class="row c2">
     <div class="card"><div class="card-title">Crawl/template findings</div>
@@ -371,9 +389,10 @@ export async function renderAuditPdf(
   crawl: CrawlResult,
   ai: AIVisibilityResult,
   narratives: ReportNarratives,
+  crux: CruxResult | null,
   outputPath?: string
 ): Promise<string> {
-  const html = buildHtml(ahrefs, crawl, ai, narratives)
+  const html = buildHtml(ahrefs, crawl, ai, narratives, crux)
 
   const resolvedPath =
     outputPath ??
